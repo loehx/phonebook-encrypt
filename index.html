@@ -2,14 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIX</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Phonebook Encrypt - by Alexander L&ouml;hn</title>
+    <meta
+      name="description"
+      content="Encrypt and decrypt phonebooks with this simple tool."
+    />
+    <meta name="author" content="Alexander L&ouml;hn" />
+    <meta
+      name="keywords"
+      content="phonebook, encrypt, decrypt, phonebook encrypt, phonebook decrypt, phonebook encrypt tool, phonebook decrypt tool, phonebook encrypt tool online, phonebook decrypt tool online, phonebook encrypt tool free, phonebook decrypt tool free, phonebook encrypt tool online free, phonebook decrypt tool online free, phonebook encrypt tool online free, phonebook decrypt tool online free"
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="google" content="notranslate" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="msapplication-navbutton-color" content="#000000" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="#000000" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
       body {
         margin: 0;
         overflow: hidden;
+        overflow-y: scroll;
+        padding-bottom: 50px;
       }
     </style>
   </head>
@@ -53,12 +74,12 @@
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      max-height: 80vh;
       overflow: hidden;
     }
     @media (min-width: 768px) {
       .container {
         flex-direction: row;
+        max-height: 80vh;
       }
     }
     .input-column {
@@ -135,16 +156,18 @@
     }
     .copyright {
       position: fixed;
-      bottom: 10px;
+      bottom: 0;
       left: 50%;
       transform: translateX(-50%);
       font-family: "Helvetica Neue", Arial, sans-serif;
       font-size: 13px;
       color: #494949;
-      padding: 8px 16px;
+      padding: 8px 16px 20px;
       transition: all 0.3s ease;
       width: 100%;
+      margin: 0;
       text-align: center;
+      background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 1));
     }
     .copyright a {
       color: inherit;
@@ -227,7 +250,7 @@
     </div>
 
     <p class="copyright">
-      Made with ❤️ by Alexander L&ouml;hn - 2024 -
+      Alexander L&ouml;hn &middot; 2024 &middot;
       <a href="https://loehx.com/" target="_blank">loehx.com</a>
     </p>
 
@@ -268,7 +291,7 @@
       });
 
       function update() {
-        const key = elements.key.value;
+        const key = elements.key.value.trim().replace(/^\n+|\n+$/g, "");
         const text = elements.text.value.trim().replace(/^\n+|\n+$/g, "");
 
         if (isEncrypted(text)) {
@@ -300,36 +323,36 @@
       }
 
       function encrypt(text, key) {
-        const DEFAULT_HASH = 137; // A prime number as default hash
+        const DEFAULT_HASH = 137;
         const keyHash = key
           ? key
               .split("")
-              .map((char) => char.charCodeAt(0))
+              .map((char) => char.codePointAt(0))
               .reduce((sum, ascii) => sum + ascii, 0) % 500
           : DEFAULT_HASH;
 
-        const chars = text.split("");
-        const ascii = chars.map((char) => char.charCodeAt(0));
-
-        const encrypted = ascii
-          .map((ascii, index) => {
+        // Convert to UTF-8 bytes and encode
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(text);
+        const encrypted = Array.from(bytes)
+          .map((byte, index) => {
             const hash = keyHash + (index % 256);
-            return (ascii + hash + index).toString(10).padStart(3, "0");
+            return ((byte + hash + index) % 256).toString(10).padStart(3, "0");
           })
           .join("");
 
-        const chunks = encrypted.match(/.{1,8}/g) || [];
-        const checksum = ascii.reduce((sum, code) => sum + code, 0) % 100;
+        const chunks = encrypted.match(/.{1,6}/g) || [];
+        const checksum = bytes.reduce((sum, byte) => sum + byte, 0) % 100;
+
         return chunks
           .map((chunk, index) => {
             const randomName = getRandomName();
-            const areaCode = Math.floor(Math.random() * 90) + 10; // Random 2-digit area code
+            const areaCode = Math.floor(Math.random() * 90) + 10;
             const separator = Math.random() < 0.5 ? " - " : " ";
-            let formattedChunk = chunk.slice(0, 4) + separator + chunk.slice(4);
+            let formattedChunk = chunk.slice(0, 3) + separator + chunk.slice(3);
 
-            // Add checksum to the last phone number
             if (index === chunks.length - 1) {
-              formattedChunk += checksum.toString().padStart(3, "0");
+              formattedChunk += checksum.toString().padStart(2, "0");
             }
 
             return `${randomName}: +${areaCode} ${formattedChunk}`;
@@ -344,7 +367,7 @@
         const keyHash = key
           ? key
               .split("")
-              .map((char) => char.charCodeAt(0))
+              .map((char) => char.codePointAt(0))
               .reduce((sum, ascii) => sum + ascii, 0) % 500
           : DEFAULT_HASH;
 
@@ -355,308 +378,47 @@
             if (!chunk.includes(":")) return "";
             const [name, phone] = chunk.split(":");
             const [areaCode, ...rest] = phone.trim().slice(1).split(" ");
-            // Join the rest of the parts and remove any separators and the checksum from the last chunk
             let numbers = rest.join("").replace(/[-\s]/g, "");
             if (chunk === chunks[chunks.length - 1]) {
-              numbers = numbers.slice(0, -3); // Remove last 3 digits (checksum)
+              numbers = numbers.slice(0, -2);
             }
             return numbers;
           })
           .join("");
 
-        const numbers = decrypted.match(/.{3}/g) || [];
-        const decryptedChars = numbers.map((num, index) => {
-          const hash = keyHash + (index % 256);
-          return String.fromCharCode(parseInt(num) - hash - index);
-        });
+        // Convert number triplets back to bytes
+        const bytes = new Uint8Array(
+          decrypted.match(/.{3}/g).map((num, index) => {
+            const hash = keyHash + (index % 256);
+            const byte = parseInt(num, 10);
+            return (byte - hash - index + 256) % 256;
+          })
+        );
 
-        // Calculate checksum from decrypted ASCII codes
-        const calculatedChecksum =
-          decryptedChars
-            .map((char) => char.charCodeAt(0))
-            .reduce((sum, code) => sum + code, 0) % 100;
+        try {
+          const decoder = new TextDecoder();
+          const decryptedText = decoder.decode(bytes);
 
-        // Get checksum from last two digits of encrypted text
-        const lastChunk = chunks[chunks.length - 1];
-        const actualChecksum = parseInt(lastChunk.slice(-2));
+          // Verify checksum
+          const calculatedChecksum =
+            Array.from(bytes).reduce((sum, byte) => sum + byte, 0) % 100;
+          const lastChunk = chunks[chunks.length - 1];
+          const actualChecksum = parseInt(lastChunk.slice(-2));
 
-        // Return empty string if checksums don't match
-        if (calculatedChecksum !== actualChecksum) {
+          if (calculatedChecksum !== actualChecksum) {
+            return "";
+          }
+
+          return decryptedText;
+        } catch (e) {
           return "";
         }
-
-        const result = decryptedChars.join("");
-        console.log("Final decrypted result:", result);
-        return result;
       }
 
       function getRandomName() {
-        const names = [
-          "Aaron",
-          "Abigail",
-          "Adam",
-          "Adrian",
-          "Aiden",
-          "Alan",
-          "Albert",
-          "Alex",
-          "Alexander",
-          "Alice",
-          "Alicia",
-          "Allison",
-          "Amanda",
-          "Amber",
-          "Amy",
-          "Andrea",
-          "Andrew",
-          "Angela",
-          "Ann",
-          "Anna",
-          "Anthony",
-          "Arthur",
-          "Ashley",
-          "Austin",
-          "Barbara",
-          "Benjamin",
-          "Beth",
-          "Betty",
-          "Beverly",
-          "Bill",
-          "Billy",
-          "Blake",
-          "Bob",
-          "Bobby",
-          "Bradley",
-          "Brandon",
-          "Brenda",
-          "Brian",
-          "Brittany",
-          "Bruce",
-          "Bryan",
-          "Caitlin",
-          "Caleb",
-          "Cameron",
-          "Carl",
-          "Carol",
-          "Caroline",
-          "Carolyn",
-          "Catherine",
-          "Charles",
-          "Charlotte",
-          "Chelsea",
-          "Cheryl",
-          "Christian",
-          "Christina",
-          "Christine",
-          "Christopher",
-          "Claire",
-          "Cody",
-          "Cole",
-          "Connor",
-          "Corey",
-          "Courtney",
-          "Craig",
-          "Crystal",
-          "Cynthia",
-          "Dale",
-          "Dan",
-          "Daniel",
-          "Danielle",
-          "Danny",
-          "David",
-          "Dawn",
-          "Dean",
-          "Deborah",
-          "Debra",
-          "Denise",
-          "Dennis",
-          "Derek",
-          "Diana",
-          "Diane",
-          "Donald",
-          "Donna",
-          "Dorothy",
-          "Douglas",
-          "Dylan",
-          "Edward",
-          "Elijah",
-          "Elizabeth",
-          "Emily",
-          "Emma",
-          "Eric",
-          "Erica",
-          "Erik",
-          "Ethan",
-          "Eugene",
-          "Eva",
-          "Evelyn",
-          "Faith",
-          "Frances",
-          "Frank",
-          "Gabriel",
-          "Gary",
-          "George",
-          "Gerald",
-          "Gloria",
-          "Grace",
-          "Gregory",
-          "Hannah",
-          "Harold",
-          "Harry",
-          "Heather",
-          "Helen",
-          "Henry",
-          "Holly",
-          "Howard",
-          "Ian",
-          "Isaac",
-          "Jack",
-          "Jackson",
-          "Jacob",
-          "Jacqueline",
-          "James",
-          "Jamie",
-          "Jane",
-          "Janet",
-          "Janice",
-          "Jason",
-          "Jay",
-          "Jean",
-          "Jeff",
-          "Jeffrey",
-          "Jennifer",
-          "Jeremy",
-          "Jerry",
-          "Jesse",
-          "Jessica",
-          "Jill",
-          "Jim",
-          "Jimmy",
-          "Joan",
-          "Joe",
-          "John",
-          "Johnny",
-          "Jonathan",
-          "Jordan",
-          "Joseph",
-          "Joshua",
-          "Joyce",
-          "Juan",
-          "Judith",
-          "Judy",
-          "Julia",
-          "Julie",
-          "Justin",
-          "Karen",
-          "Katherine",
-          "Kathleen",
-          "Kathryn",
-          "Kathy",
-          "Keith",
-          "Kelly",
-          "Kenneth",
-          "Kevin",
-          "Kim",
-          "Kimberly",
-          "Kyle",
-          "Larry",
-          "Laura",
-          "Lauren",
-          "Lawrence",
-          "Leah",
-          "Leonard",
-          "Leslie",
-          "Linda",
-          "Lisa",
-          "Logan",
-          "Lori",
-          "Louis",
-          "Lucas",
-          "Luke",
-          "Lynn",
-          "Madison",
-          "Margaret",
-          "Maria",
-          "Marie",
-          "Marilyn",
-          "Mark",
-          "Martha",
-          "Martin",
-          "Mary",
-          "Matthew",
-          "Megan",
-          "Melissa",
-          "Michael",
-          "Michelle",
-          "Mike",
-          "Nancy",
-          "Natalie",
-          "Nathan",
-          "Nicholas",
-          "Nicole",
-          "Noah",
-          "Norman",
-          "Oliver",
-          "Olivia",
-          "Pamela",
-          "Patricia",
-          "Patrick",
-          "Paul",
-          "Paula",
-          "Peter",
-          "Philip",
-          "Rachel",
-          "Ralph",
-          "Randy",
-          "Raymond",
-          "Rebecca",
-          "Richard",
-          "Robert",
-          "Robin",
-          "Roger",
-          "Ronald",
-          "Rose",
-          "Roy",
-          "Russell",
-          "Ruth",
-          "Ryan",
-          "Samuel",
-          "Sandra",
-          "Sara",
-          "Sarah",
-          "Scott",
-          "Sean",
-          "Sharon",
-          "Shawn",
-          "Sheila",
-          "Shirley",
-          "Sophia",
-          "Stephanie",
-          "Stephen",
-          "Steve",
-          "Steven",
-          "Susan",
-          "Teresa",
-          "Terry",
-          "Theodore",
-          "Thomas",
-          "Timothy",
-          "Tina",
-          "Todd",
-          "Tom",
-          "Tony",
-          "Tracy",
-          "Tyler",
-          "Victoria",
-          "Vincent",
-          "Virginia",
-          "Walter",
-          "Wayne",
-          "William",
-          "Willie",
-          "Zachary",
-        ];
-        return names[Math.floor(Math.random() * names.length)];
+        return "Aaron|Abigail|Adam|Adrian|Aiden|Alan|Albert|Alex|Alexander|Alice|Alicia|Allison|Amanda|Amber|Amy|Andrea|Andrew|Angela|Ann|Anna|Anthony|Arthur|Ashley|Austin|Barbara|Benjamin|Beth|Betty|Beverly|Bill|Billy|Blake|Bob|Bobby|Bradley|Brandon|Brenda|Brian|Brittany|Bruce|Bryan|Caitlin|Caleb|Cameron|Carl|Carol|Caroline|Carolyn|Catherine|Charles|Charlotte|Chelsea|Cheryl|Christian|Christina|Christine|Christopher|Claire|Cody|Cole|Connor|Corey|Courtney|Craig|Crystal|Cynthia|Dale|Dan|Daniel|Danielle|Danny|David|Dawn|Dean|Deborah|Debra|Denise|Dennis|Derek|Diana|Diane|Donald|Donna|Dorothy|Douglas|Dylan|Edward|Elijah|Elizabeth|Emily|Emma|Eric|Erica|Erik|Ethan|Eugene|Eva|Evelyn|Faith|Frances|Frank|Gabriel|Gary|George|Gerald|Gloria|Grace|Gregory|Hannah|Harold|Harry|Heather|Helen|Henry|Holly|Howard|Ian|Isaac|Jack|Jackson|Jacob|Jacqueline|James|Jamie|Jane|Janet|Janice|Jason|Jay|Jean|Jeff|Jeffrey|Jennifer|Jeremy|Jerry|Jesse|Jessica|Jill|Jim|Jimmy|Joan|Joe|John|Johnny|Jonathan|Jordan|Joseph|Joshua|Joyce|Juan|Judith|Judy|Julia|Julie|Justin|Karen|Katherine|Kathleen|Kathryn|Kathy|Keith|Kelly|Kenneth|Kevin|Kim|Kimberly|Kyle|Larry|Laura|Lauren|Lawrence|Leah|Leonard|Leslie|Linda|Lisa|Logan|Lori|Louis|Lucas|Luke|Lynn|Madison|Margaret|Maria|Marie|Marilyn|Mark|Martha|Martin|Mary|Matthew|Megan|Melissa|Michael|Michelle|Mike|Nancy|Natalie|Nathan|Nicholas|Nicole|Noah|Norman|Oliver|Olivia|Pamela|Patricia|Patrick|Paul|Paula|Peter|Philip|Rachel|Ralph|Randy|Raymond|Rebecca|Richard|Robert|Robin|Roger|Ronald|Rose|Roy|Russell|Ruth|Ryan|Samuel|Sandra|Sara|Sarah|Scott|Sean|Sharon|Shawn|Sheila|Shirley|Sophia|Stephanie|Stephen|Steve|Steven|Susan|Teresa|Terry|Theodore|Thomas|Timothy|Tina|Todd|Tom|Tony|Tracy|Tyler|Victoria|Vincent|Virginia|Walter|Wayne|William|Willie|Zachary".split(
+          "|"
+        )[Math.floor(Math.random() * 200)];
       }
 
       function showCopyButton() {
