@@ -133,6 +133,27 @@
     .copyright:hover {
       color: #fff;
     }
+    ::selection {
+      background-color: #f6ff00;
+      color: #000;
+    }
+
+    /* For Firefox */
+    ::-moz-selection {
+      background-color: #f6ff00;
+      color: #000;
+    }
+
+    /* Make the encrypted output selection match */
+    #encrypted::selection {
+      background-color: #f6ff00;
+      color: #000;
+    }
+
+    #encrypted::-moz-selection {
+      background-color: #f6ff00;
+      color: #000;
+    }
   </style>
   <body>
     <div class="header">
@@ -168,6 +189,15 @@
 
       elements.text.addEventListener("input", update);
       elements.key.addEventListener("input", update);
+
+      // Add click handler to select encrypted text
+      elements.encrypted.addEventListener("click", function () {
+        const range = document.createRange();
+        range.selectNodeContents(this);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
 
       function update() {
         const key = elements.key.value;
