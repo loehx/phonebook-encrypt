@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIX</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #000;
+      color: #fff;
+    }
+    .header {
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    @media (min-width: 768px) {
+      .container {
+        flex-direction: row;
+      }
+    }
+    .input-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-basis: 50%;
+      flex-shrink: 0;
+    }
+    .input-column input,
+    .input-column textarea {
+      width: 100%;
+      padding: 10px;
+      background-color: #1a1a1a;
+      border: 1px solid #333;
+      color: #fff;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      outline: none;
+      resize: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .input-column input:focus,
+    .input-column textarea:focus {
+      border-color: #666;
+      box-shadow: 0 0 0 2px rgba(100, 100, 100, 0.3);
+      background-color: #222;
+    }
+    .input-column textarea {
+      height: 200px;
+    }
+
+    .output-column {
+      flex-basis: 50%;
+      flex-shrink: 0;
+      flex-grow: 0;
+      display: grid;
+    }
+    #encrypted {
+      padding: 10px;
+      background-color: #0f0f0f;
+      height: 100%;
+      margin: 0;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: auto;
+      min-height: 200px;
+    }
+    #encrypted.success {
+      color: #8bc34a;
+      border: 1px solid #8bc34a;
+    }
+    #encrypted.failed {
+      color: #f44336;
+      border: 1px solid #f44336;
+    }
+    pre {
+      margin: 0;
+      padding: 0;
+      font-family: monospace;
+      max-width: 100%;
+    }
+  </style>
+  <body>
+    <div class="header">
+      <h1>Phonebook Encrypt</h1>
+    </div>
+    <div class="container">
+      <div class="input-column">
+        <textarea
+          id="text"
+          placeholder="Enter text to encrypt or decrypt..."
+        ></textarea>
+        <input type="text" id="key" placeholder="Enter encryption key..." />
+      </div>
+
+      <div class="output-column">
+        <pre
+          id="encrypted"
+        ><span style="opacity: 0.3;">Here will appear your encrypted/decrypted data.</span></pre>
+      </div>
+    </div>
+
+    <script>
+      const elements = {
+        key: document.getElementById("key"),
+        text: document.getElementById("text"),
+        encrypted: document.getElementById("encrypted"),
+      };
+
+      elements.text.addEventListener("input", update);
+      elements.key.addEventListener("input", update);
+
+      function update() {
+        const key = elements.key.value;
+        const text = elements.text.value;
+
+        if (isEncrypted(text)) {
+          const decrypted = decrypt(text, key);
+          elements.encrypted.classList.toggle("success", decrypted);
+          elements.encrypted.classList.toggle("failed", !decrypted);
+          if (decrypted) {
+            elements.encrypted.textContent = decrypted;
+          } else {
+            elements.encrypted.textContent = "Failed to decrypt";
+          }
+        } else {
+          elements.encrypted.classList.remove("success", "failed");
+          elements.encrypted.textContent = encrypt(text, key);
+        }
+      }
+
+      function isEncrypted(text) {
+        const lineCount = text.split("\n").length;
+        const plusCount = text.split("+").length - 1;
+        const colonCount = text.split(":").length - 1;
+        console.log("AAA", lineCount, plusCount, colonCount);
+        return (
+          plusCount > 0 && lineCount === plusCount && lineCount === colonCount
+        );
+      }
+
+      function encrypt(text, key) {
+        const keyChars = key.split("");
+        const keyAscii = keyChars.map((char) => char.charCodeAt(0));
+        const keyHash = keyAscii.reduce((sum, ascii) => sum + ascii, 0) % 500;
+        const chars = text.split("");
+        const ascii = chars.map((char) => char.charCodeAt(0));
+
+        const encrypted = ascii
+          .map((ascii, index) => {
+            const hash = keyHash + (index % 256);
+            return (ascii + hash + index).toString(10).padStart(3, "0");
+          })
+          .join("");
+
+        const chunks = encrypted.match(/.{1,8}/g) || [];
+        const checksum = ascii.reduce((sum, code) => sum + code, 0) % 100;
+
+        console.log("Encrypting text:", text);
+        console.log("Using key:", key);
+        console.log("Encrypted:", encrypted);
+        console.log("Checksum:", checksum);
+        return chunks
+          .map((chunk, index) => {
+            const randomName = getRandomName();
+            const areaCode = Math.floor(Math.random() * 90) + 10; // Random 2-digit area code
+            const separator = Math.random() < 0.5 ? " - " : " ";
+            let formattedChunk = chunk.slice(0, 4) + separator + chunk.slice(4);
+
+            // Add checksum to the last phone number
+            if (index === chunks.length - 1) {
+              formattedChunk += checksum.toString().padStart(3, "0");
+            }
+
+            return `${randomName}: +${areaCode} ${formattedChunk}`;
+          })
+          .join("\n");
+      }
+
+      function decrypt(text, key) {
+        if (!text.includes(":") || !text.includes("+")) return "";
+        console.log("Decrypting text:", text);
+        console.log("Using key:", key);
+
+        const keyChars = key.split("");
+        const keyAscii = keyChars.map((char) => char.charCodeAt(0));
+        const keyHash = keyAscii.reduce((sum, ascii) => sum + ascii, 0) % 500;
+        console.log("Generated key hash:", keyHash);
+
+        const chunks = text.split("\n");
+        console.log("Split into chunks:", chunks);
+
+        const decrypted = chunks
+          .map((chunk) => {
+            if (!chunk.includes(":")) return "";
+            const [name, phone] = chunk.split(":");
+            const [areaCode, ...rest] = phone.trim().slice(1).split(" ");
+            // Join the rest of the parts and remove any separators and the checksum from the last chunk
+            let numbers = rest.join("").replace(/[-\s]/g, "");
+            if (chunk === chunks[chunks.length - 1]) {
+              numbers = numbers.slice(0, -3); // Remove last 3 digits (checksum)
+            }
+            return numbers;
+          })
+          .join("");
+        console.log("Extracted numbers:", decrypted);
+
+        const numbers = decrypted.match(/.{3}/g) || [];
+        const decryptedChars = numbers.map((num, index) => {
+          const hash = keyHash + (index % 256);
+          return String.fromCharCode(parseInt(num) - hash - index);
+        });
+        console.log("Decrypted characters:", decryptedChars);
+
+        // Calculate checksum from decrypted ASCII codes
+        const calculatedChecksum =
+          decryptedChars
+            .map((char) => char.charCodeAt(0))
+            .reduce((sum, code) => sum + code, 0) % 100;
+        console.log("Calculated checksum:", calculatedChecksum);
+
+        // Get checksum from last two digits of encrypted text
+        const lastChunk = chunks[chunks.length - 1];
+        const actualChecksum = parseInt(lastChunk.slice(-2));
+        console.log("Actual checksum from text:", actualChecksum);
+
+        // Return empty string if checksums don't match
+        if (calculatedChecksum !== actualChecksum) {
+          console.log("Checksums do not match, decryption failed");
+          return "";
+        }
+
+        const result = decryptedChars.join("");
+        console.log("Final decrypted result:", result);
+        return result;
+      }
+
+      function getRandomName() {
+        const names = [
+          "Aaron",
+          "Abigail",
+          "Adam",
+          "Adrian",
+          "Aiden",
+          "Alan",
+          "Albert",
+          "Alex",
+          "Alexander",
+          "Alice",
+          "Alicia",
+          "Allison",
+          "Amanda",
+          "Amber",
+          "Amy",
+          "Andrea",
+          "Andrew",
+          "Angela",
+          "Ann",
+          "Anna",
+          "Anthony",
+          "Arthur",
+          "Ashley",
+          "Austin",
+          "Barbara",
+          "Benjamin",
+          "Beth",
+          "Betty",
+          "Beverly",
+          "Bill",
+          "Billy",
+          "Blake",
+          "Bob",
+          "Bobby",
+          "Bradley",
+          "Brandon",
+          "Brenda",
+          "Brian",
+          "Brittany",
+          "Bruce",
+          "Bryan",
+          "Caitlin",
+          "Caleb",
+          "Cameron",
+          "Carl",
+          "Carol",
+          "Caroline",
+          "Carolyn",
+          "Catherine",
+          "Charles",
+          "Charlotte",
+          "Chelsea",
+          "Cheryl",
+          "Christian",
+          "Christina",
+          "Christine",
+          "Christopher",
+          "Claire",
+          "Cody",
+          "Cole",
+          "Connor",
+          "Corey",
+          "Courtney",
+          "Craig",
+          "Crystal",
+          "Cynthia",
+          "Dale",
+          "Dan",
+          "Daniel",
+          "Danielle",
+          "Danny",
+          "David",
+          "Dawn",
+          "Dean",
+          "Deborah",
+          "Debra",
+          "Denise",
+          "Dennis",
+          "Derek",
+          "Diana",
+          "Diane",
+          "Donald",
+          "Donna",
+          "Dorothy",
+          "Douglas",
+          "Dylan",
+          "Edward",
+          "Elijah",
+          "Elizabeth",
+          "Emily",
+          "Emma",
+          "Eric",
+          "Erica",
+          "Erik",
+          "Ethan",
+          "Eugene",
+          "Eva",
+          "Evelyn",
+          "Faith",
+          "Frances",
+          "Frank",
+          "Gabriel",
+          "Gary",
+          "George",
+          "Gerald",
+          "Gloria",
+          "Grace",
+          "Gregory",
+          "Hannah",
+          "Harold",
+          "Harry",
+          "Heather",
+          "Helen",
+          "Henry",
+          "Holly",
+          "Howard",
+          "Ian",
+          "Isaac",
+          "Jack",
+          "Jackson",
+          "Jacob",
+          "Jacqueline",
+          "James",
+          "Jamie",
+          "Jane",
+          "Janet",
+          "Janice",
+          "Jason",
+          "Jay",
+          "Jean",
+          "Jeff",
+          "Jeffrey",
+          "Jennifer",
+          "Jeremy",
+          "Jerry",
+          "Jesse",
+          "Jessica",
+          "Jill",
+          "Jim",
+          "Jimmy",
+          "Joan",
+          "Joe",
+          "John",
+          "Johnny",
+          "Jonathan",
+          "Jordan",
+          "Joseph",
+          "Joshua",
+          "Joyce",
+          "Juan",
+          "Judith",
+          "Judy",
+          "Julia",
+          "Julie",
+          "Justin",
+          "Karen",
+          "Katherine",
+          "Kathleen",
+          "Kathryn",
+          "Kathy",
+          "Keith",
+          "Kelly",
+          "Kenneth",
+          "Kevin",
+          "Kim",
+          "Kimberly",
+          "Kyle",
+          "Larry",
+          "Laura",
+          "Lauren",
+          "Lawrence",
+          "Leah",
+          "Leonard",
+          "Leslie",
+          "Linda",
+          "Lisa",
+          "Logan",
+          "Lori",
+          "Louis",
+          "Lucas",
+          "Luke",
+          "Lynn",
+          "Madison",
+          "Margaret",
+          "Maria",
+          "Marie",
+          "Marilyn",
+          "Mark",
+          "Martha",
+          "Martin",
+          "Mary",
+          "Matthew",
+          "Megan",
+          "Melissa",
+          "Michael",
+          "Michelle",
+          "Mike",
+          "Nancy",
+          "Natalie",
+          "Nathan",
+          "Nicholas",
+          "Nicole",
+          "Noah",
+          "Norman",
+          "Oliver",
+          "Olivia",
+          "Pamela",
+          "Patricia",
+          "Patrick",
+          "Paul",
+          "Paula",
+          "Peter",
+          "Philip",
+          "Rachel",
+          "Ralph",
+          "Randy",
+          "Raymond",
+          "Rebecca",
+          "Richard",
+          "Robert",
+          "Robin",
+          "Roger",
+          "Ronald",
+          "Rose",
+          "Roy",
+          "Russell",
+          "Ruth",
+          "Ryan",
+          "Samuel",
+          "Sandra",
+          "Sara",
+          "Sarah",
+          "Scott",
+          "Sean",
+          "Sharon",
+          "Shawn",
+          "Sheila",
+          "Shirley",
+          "Sophia",
+          "Stephanie",
+          "Stephen",
+          "Steve",
+          "Steven",
+          "Susan",
+          "Teresa",
+          "Terry",
+          "Theodore",
+          "Thomas",
+          "Timothy",
+          "Tina",
+          "Todd",
+          "Tom",
+          "Tony",
+          "Tracy",
+          "Tyler",
+          "Victoria",
+          "Vincent",
+          "Virginia",
+          "Walter",
+          "Wayne",
+          "William",
+          "Willie",
+          "Zachary",
+        ];
+        return names[Math.floor(Math.random() * names.length)];
+      }
+    </script>
+  </body>
+</html>
