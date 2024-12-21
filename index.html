@@ -331,7 +331,7 @@
           ctx.arc(centerX, centerY, this.size, 0, Math.PI * 2);
 
           // Add color variation based on distance
-          const brightness = Math.min(200, Math.floor(this.distance * 0.5));
+          const brightness = Math.min(150, Math.floor(this.distance * 0.5));
           ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${255})`;
           ctx.fill();
         }
