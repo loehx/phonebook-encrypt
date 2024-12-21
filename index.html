@@ -21,6 +21,16 @@
       background-color: #000;
       color: #fff;
     }
+    h1 {
+      margin: 0;
+      padding: 0;
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
     .header {
       text-align: center;
       padding: 20px;
@@ -103,6 +113,26 @@
       font-family: monospace;
       max-width: 100%;
     }
+    .copyright {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      color: #494949;
+      padding: 8px 16px;
+      transition: all 0.3s ease;
+      width: 100%;
+      text-align: center;
+    }
+    .copyright a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .copyright:hover {
+      color: #fff;
+    }
   </style>
   <body>
     <div class="header">
@@ -124,6 +154,11 @@
       </div>
     </div>
 
+    <p class="copyright">
+      Made with ❤️ by Alexander L&ouml;hn - 2024 -
+      <a href="https://loehx.com/" target="_blank">loehx.com</a>
+    </p>
+
     <script>
       const elements = {
         key: document.getElementById("key"),
@@ -136,7 +171,7 @@
 
       function update() {
         const key = elements.key.value;
-        const text = elements.text.value;
+        const text = elements.text.value.trim().replace(/^\n+|\n+$/g, "");
 
         if (isEncrypted(text)) {
           const decrypted = decrypt(text, key);
@@ -157,7 +192,6 @@
         const lineCount = text.split("\n").length;
         const plusCount = text.split("+").length - 1;
         const colonCount = text.split(":").length - 1;
-        console.log("AAA", lineCount, plusCount, colonCount);
         return (
           plusCount > 0 && lineCount === plusCount && lineCount === colonCount
         );
@@ -179,11 +213,6 @@
 
         const chunks = encrypted.match(/.{1,8}/g) || [];
         const checksum = ascii.reduce((sum, code) => sum + code, 0) % 100;
-
-        console.log("Encrypting text:", text);
-        console.log("Using key:", key);
-        console.log("Encrypted:", encrypted);
-        console.log("Checksum:", checksum);
         return chunks
           .map((chunk, index) => {
             const randomName = getRandomName();
@@ -203,16 +232,11 @@
 
       function decrypt(text, key) {
         if (!text.includes(":") || !text.includes("+")) return "";
-        console.log("Decrypting text:", text);
-        console.log("Using key:", key);
 
         const keyChars = key.split("");
         const keyAscii = keyChars.map((char) => char.charCodeAt(0));
         const keyHash = keyAscii.reduce((sum, ascii) => sum + ascii, 0) % 500;
-        console.log("Generated key hash:", keyHash);
-
         const chunks = text.split("\n");
-        console.log("Split into chunks:", chunks);
 
         const decrypted = chunks
           .map((chunk) => {
@@ -227,30 +251,25 @@
             return numbers;
           })
           .join("");
-        console.log("Extracted numbers:", decrypted);
 
         const numbers = decrypted.match(/.{3}/g) || [];
         const decryptedChars = numbers.map((num, index) => {
           const hash = keyHash + (index % 256);
           return String.fromCharCode(parseInt(num) - hash - index);
         });
-        console.log("Decrypted characters:", decryptedChars);
 
         // Calculate checksum from decrypted ASCII codes
         const calculatedChecksum =
           decryptedChars
             .map((char) => char.charCodeAt(0))
             .reduce((sum, code) => sum + code, 0) % 100;
-        console.log("Calculated checksum:", calculatedChecksum);
 
         // Get checksum from last two digits of encrypted text
         const lastChunk = chunks[chunks.length - 1];
         const actualChecksum = parseInt(lastChunk.slice(-2));
-        console.log("Actual checksum from text:", actualChecksum);
 
         // Return empty string if checksums don't match
         if (calculatedChecksum !== actualChecksum) {
-          console.log("Checksums do not match, decryption failed");
           return "";
         }
 
