@@ -461,15 +461,37 @@
           })
           .join("");
 
-        const chunks = encrypted.match(/.{1,6}/g) || [];
+        const chunks = encrypted.match(/.{1,9}/g) || [];
         const checksum = bytes.reduce((sum, byte) => sum + byte, 0) % 100;
 
         return chunks
           .map((chunk, index) => {
             const randomName = getRandomName();
             const areaCode = Math.floor(Math.random() * 90) + 10;
-            const separator = Math.random() < 0.5 ? " - " : " ";
-            let formattedChunk = chunk.slice(0, 3) + separator + chunk.slice(3);
+
+            // Create varied digit groupings
+            let formattedChunk = "";
+            let remaining = chunk;
+            let usedDash = false;
+
+            while (remaining.length > 0) {
+              // Randomly choose group size (3-6 digits)
+              const groupSize = Math.min(
+                remaining.length,
+                Math.floor(Math.random() * 4) + 3
+              );
+
+              if (formattedChunk) {
+                // Add separator between groups
+                // Only use dash if we haven't used one yet and randomly decide to
+                const useDash = !usedDash && Math.random() < 0.3;
+                formattedChunk += useDash ? " - " : " ";
+                usedDash = usedDash || useDash;
+              }
+
+              formattedChunk += remaining.slice(0, groupSize);
+              remaining = remaining.slice(groupSize);
+            }
 
             if (index === chunks.length - 1) {
               formattedChunk += checksum.toString().padStart(2, "0");
