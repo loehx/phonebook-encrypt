@@ -89,6 +89,7 @@
       flex-basis: 50%;
       flex-shrink: 0;
     }
+
     .input-column input,
     .input-column textarea {
       width: 100%;
@@ -106,6 +107,14 @@
       outline: none;
       resize: none;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .input-column input {
+      color: yellow;
+      border-color: yellow;
+    }
+    .input-column input:placeholder-shown {
+      border-color: #333;
+      color: #fff;
     }
 
     .input-column input:focus,
@@ -127,7 +136,7 @@
       max-height: 90vh;
       overflow: auto;
     }
-    #encrypted {
+    #output {
       padding: 10px;
       background-color: rgba(15, 15, 15, 0.6);
       backdrop-filter: blur(5px);
@@ -143,12 +152,16 @@
       border: 1px solid #333;
       border-radius: 4px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      resize: none;
+      color: #fff;
+      width: 100%;
+      outline: none;
     }
-    #encrypted.success {
+    #output.success {
       color: #8bc34a;
       border: 1px solid #8bc34a;
     }
-    #encrypted.failed {
+    #output.failed {
       color: #f44336;
       border: 1px solid #f44336;
     }
@@ -192,12 +205,12 @@
     }
 
     /* Make the encrypted output selection match */
-    #encrypted::selection {
+    #output::selection {
       background-color: var(--secondary);
       color: #fff;
     }
 
-    #encrypted::-moz-selection {
+    #output::-moz-selection {
       background-color: var(--secondary);
       color: #fff;
     }
@@ -223,6 +236,10 @@
       background: #444;
     }
 
+    .copy-button:active {
+      transform: scale(0.95);
+    }
+
     .copy-button.success {
       background: #8bc34a;
       border-color: #7cb342;
@@ -246,9 +263,11 @@
       </div>
 
       <div class="output-column">
-        <pre
-          id="encrypted"
-        ><span style="opacity: 0.3;">Enter text to see result</span></pre>
+        <textarea
+          id="output"
+          readonly
+          placeholder="Enter text to see result"
+        ></textarea>
         <button class="copy-button" id="copyButton">Copy</button>
       </div>
     </div>
@@ -378,7 +397,7 @@
       const elements = {
         key: document.getElementById("key"),
         text: document.getElementById("text"),
-        encrypted: document.getElementById("encrypted"),
+        output: document.getElementById("output"),
         copyButton: document.querySelector(".copy-button"),
       };
 
@@ -386,19 +405,19 @@
       elements.key.addEventListener("input", update);
 
       // Add click handler to select encrypted text
-      elements.encrypted.addEventListener("click", function () {
-        const range = document.createRange();
-        range.selectNodeContents(this);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
+      elements.output.addEventListener("click", function () {
+        this.select();
       });
 
       const copyButton = document.getElementById("copyButton");
 
-      copyButton.addEventListener("click", async () => {
+      copyButton.addEventListener("click", () => {
         try {
-          await navigator.clipboard.writeText(elements.encrypted.textContent);
+          elements.output.select();
+          elements.output.setSelectionRange(0, elements.output.value.length);
+          document.execCommand("copy");
+
+          window.getSelection().removeAllRanges();
           copyButton.textContent = "Copied!";
           copyButton.classList.add("success");
           setTimeout(() => {
@@ -407,6 +426,10 @@
           }, 2000);
         } catch (err) {
           console.error("Failed to copy text:", err);
+          copyButton.textContent = "Failed to copy";
+          setTimeout(() => {
+            copyButton.textContent = "Copy";
+          }, 2000);
         }
       });
 
@@ -416,19 +439,19 @@
 
         if (isEncrypted(text)) {
           const decrypted = decrypt(text, key);
-          elements.encrypted.classList.toggle("success", decrypted);
-          elements.encrypted.classList.toggle("failed", !decrypted);
+          elements.output.classList.toggle("success", decrypted);
+          elements.output.classList.toggle("failed", !decrypted);
           if (decrypted) {
-            elements.encrypted.textContent = decrypted;
+            elements.output.value = decrypted;
             showCopyButton();
           } else {
-            elements.encrypted.textContent = "Failed to decrypt";
+            elements.output.value = "Failed to decrypt";
             hideCopyButton();
           }
         } else {
-          elements.encrypted.classList.remove("success", "failed");
+          elements.output.classList.remove("success", "failed");
           const encryptedText = encrypt(text, key);
-          elements.encrypted.textContent = encryptedText;
+          elements.output.value = encryptedText;
           text ? showCopyButton() : hideCopyButton();
         }
       }
@@ -578,6 +601,10 @@
           elements.copyButton.style.visibility = "hidden";
         }, 300);
       }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        elements.text.focus();
+      });
     </script>
   </body>
 </html>
